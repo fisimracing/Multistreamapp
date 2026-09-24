@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Multistream</title>
 <link rel="stylesheet" href="style.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/flv.js/1.6.2/flv.min.js"></script>
 </head>
 <body>
   <div id="login-screen" class="screen">
@@ -31,6 +32,13 @@
         <button id="restart-relay-btn">Aplicar destinos / reiniciar envío</button>
         <button id="stop-relay-btn" class="danger">Detener envío</button>
       </div>
+    </section>
+
+    <section class="card">
+      <h2>Vista previa</h2>
+      <video id="preview-video" muted playsinline></video>
+      <p id="preview-msg" class="muted">Esperando señal…</p>
+      <div id="quality-box" class="muted"></div>
     </section>
 
     <section class="card">
