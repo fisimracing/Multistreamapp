@@ -1,0 +1,17 @@
+{
+  "name": "multistream-app",
+  "version": "1.0.0",
+  "description": "Recibe una señal RTMP (OBS) y la redistribuye a YouTube, Twitch, Kick, TikTok, Facebook u otros destinos RTMP.",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "express-session": "^1.18.0",
+    "node-media-server": "^2.6.3"
+  }
+}
