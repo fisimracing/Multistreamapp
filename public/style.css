@@ -133,6 +133,19 @@ pre.log {
   white-space: pre-wrap;
 }
 
+#preview-video {
+  width: 100%;
+  max-height: 360px;
+  background: #000;
+  border-radius: 8px;
+  display: block;
+}
+
+#quality-box {
+  margin-top: 8px;
+  font-size: 13px;
+}
+
 code {
   background: #0a0c10;
   padding: 2px 6px;
