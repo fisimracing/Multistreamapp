@@ -83,8 +83,81 @@ async function loadStatus() {
       ${s.lastError ? `<p class="error">${s.lastError}</p>` : ''}
       <pre class="log">${s.logTail.join('\n') || 'Sin actividad reciente'}</pre>
     `;
+    loadQuality(s.live);
   } catch (e) {
     box.textContent = 'No se pudo cargar el estado.';
+  }
+}
+
+// --- Vista previa (HTTP-FLV) y calidad ---
+let flvPlayer = null;
+let previewStreamKey = null;
+
+async function ensurePreviewKey() {
+  if (previewStreamKey) return previewStreamKey;
+  const info = await api('/api/connection-info');
+  previewStreamKey = info.streamKey;
+  return previewStreamKey;
+}
+
+function startPreview(key) {
+  const video = document.getElementById('preview-video');
+  const msg = document.getElementById('preview-msg');
+  if (!window.flvjs || !flvjs.isSupported()) {
+    msg.textContent = 'Tu navegador no soporta la vista previa (probá con Chrome/Edge).';
+    return;
+  }
+  if (flvPlayer) return; // ya está corriendo
+  flvPlayer = flvjs.createPlayer({
+    type: 'flv',
+    isLive: true,
+    url: `/live/${key}.flv`,
+  });
+  flvPlayer.attachMediaElement(video);
+  flvPlayer.load();
+  flvPlayer.play().catch(() => {});
+  msg.textContent = '';
+  flvPlayer.on(flvjs.Events.ERROR, () => {
+    msg.textContent = 'No se pudo cargar la vista previa todavía.';
+    stopPreview();
+  });
+}
+
+function stopPreview() {
+  if (flvPlayer) {
+    try {
+      flvPlayer.pause();
+      flvPlayer.unload();
+      flvPlayer.detachMediaElement();
+      flvPlayer.destroy();
+    } catch (e) {
+      /* ignore */
+    }
+    flvPlayer = null;
+  }
+  document.getElementById('preview-msg').textContent = 'Esperando señal…';
+}
+
+async function loadQuality(isLive) {
+  const box = document.getElementById('quality-box');
+  if (!isLive) {
+    box.textContent = '';
+    stopPreview();
+    return;
+  }
+  const key = await ensurePreviewKey();
+  if (key) startPreview(key);
+  try {
+    const q = await api('/api/quality');
+    if (!q.live) {
+      box.textContent = '';
+      return;
+    }
+    const v = q.video || {};
+    const a = q.audio || {};
+    box.textContent = `Video: ${v.width || '?'}x${v.height || '?'} · ${v.fps || '?'} fps · ${v.codec || ''}   |   Audio: ${a.codec || ''} ${a.samplerate ? a.samplerate + 'Hz' : ''}`;
+  } catch (e) {
+    box.textContent = '';
   }
 }
 
