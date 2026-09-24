@@ -1,4 +1,5 @@
 const path = require('path');
+const http = require('http');
 const express = require('express');
 const session = require('express-session');
 
@@ -9,6 +10,7 @@ const rtmpServer = require('./rtmp-server');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const NMS_HTTP_PORT = process.env.NMS_HTTP_PORT || 8000;
 
 app.use(express.json());
 app.use(
@@ -97,6 +99,50 @@ app.post('/api/relay/restart', requireAuth, (req, res) => {
 app.post('/api/relay/stop', requireAuth, (req, res) => {
   relay.stop();
   res.json(relay.getStatus());
+});
+
+// --- Calidad de la señal entrante (resolución, fps, códec) ---
+// Se lee de la API interna de Node Media Server, así que funciona
+// aunque todavía no haya destinos habilitados.
+app.get('/api/quality', requireAuth, async (req, res) => {
+  const key = process.env.STREAM_KEY;
+  try {
+    const r = await fetch(`http://127.0.0.1:${NMS_HTTP_PORT}/api/streams`);
+    const data = await r.json();
+    const liveApp = (data && data.live) || {};
+    const info = key ? liveApp[key] : Object.values(liveApp)[0];
+    if (!info || !info.publisher) return res.json({ live: false });
+    const v = info.publisher.video || {};
+    const a = info.publisher.audio || {};
+    res.json({
+      live: true,
+      video: { codec: v.codec, width: v.width, height: v.height, fps: v.fps, profile: v.profile },
+      audio: { codec: a.codec, samplerate: a.samplerate, channels: a.channels },
+    });
+  } catch (e) {
+    res.json({ live: false, error: e.message });
+  }
+});
+
+// --- Vista previa en vivo (HTTP-FLV), reenviada desde Node Media Server ---
+app.get('/live/:file', requireAuth, (req, res) => {
+  const proxyReq = http.request(
+    {
+      host: '127.0.0.1',
+      port: NMS_HTTP_PORT,
+      path: `/live/${req.params.file}`,
+      method: 'GET',
+    },
+    (proxyRes) => {
+      res.writeHead(proxyRes.statusCode, proxyRes.headers);
+      proxyRes.pipe(res);
+    }
+  );
+  proxyReq.on('error', () => {
+    if (!res.headersSent) res.status(502).end('No se pudo conectar con el servidor RTMP interno');
+  });
+  req.on('close', () => proxyReq.destroy());
+  proxyReq.end();
 });
 
 app.get('/health', (req, res) => res.send('ok'));
